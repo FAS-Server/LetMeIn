@@ -2,9 +2,13 @@ package cn.fasserver.more_perm;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -18,9 +22,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Plugin(
@@ -33,16 +35,18 @@ import java.util.stream.Stream;
 )
 public class MorePerm {
     private final Logger logger;
+    private final ProxyServer server;
 
     @Inject
-    public MorePerm(Logger logger) {
+    public MorePerm(ProxyServer server, Logger logger) {
+        this.server = server;
         this.logger = logger;
+        logger.info("More permission node enabled!");
     }
 
     @Subscribe
     void onProxyInitializeEvent(ProxyInitializeEvent event) {
         registerTranslations();
-        logger.info("More permission node enabled!");
     }
 
     private void registerTranslations() {
@@ -78,6 +82,7 @@ public class MorePerm {
             throw new IllegalStateException(e);
         }
         GlobalTranslator.get().addSource(translationRegistry);
+        logger.info("Localizations loaded!");
     }
 
 
@@ -127,9 +132,36 @@ public class MorePerm {
         // If connection is not allowed, do nothing
         if (!event.getResult().isAllowed()) return;
         // else, check whether the player has permission to join server
-        if (event.getResult().getServer().isPresent() && !event.getPlayer().hasPermission("server.join." + event.getResult().getServer().get().getServerInfo().getName())) {
+        if (event.getResult().getServer().isPresent() && canPlayerJoinServer(event.getPlayer(), event.getResult().getServer().get())) {
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
             event.getPlayer().sendMessage(Component.translatable("more-perms.perm_deny.server_join", NamedTextColor.DARK_RED));
         }
+    }
+
+    @Subscribe
+    void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
+        Optional<RegisteredServer> initialServer = event.getInitialServer();
+        if(initialServer.isPresent() && !canPlayerJoinServer(event.getPlayer(), initialServer.get())){
+            List<String> connOrder = server.getConfiguration().getAttemptConnectionOrder().stream().filter(
+                    s -> canPlayerJoinServer(event.getPlayer(), s)
+            ).toList();
+            event.setInitialServer(null);
+            for (String conn: connOrder){
+                Optional<RegisteredServer> serverOptional = server.getServer(conn);
+                if(serverOptional.isPresent()){
+                    event.setInitialServer(serverOptional.get());
+                    return;
+                }
+            }
+
+        }
+    }
+
+    private boolean canPlayerJoinServer(Player player, RegisteredServer server){
+        return canPlayerJoinServer(player, server.getServerInfo().getName());
+    }
+
+    private boolean canPlayerJoinServer(Player player, String server){
+        return player.hasPermission("server.join." + server);
     }
 }
