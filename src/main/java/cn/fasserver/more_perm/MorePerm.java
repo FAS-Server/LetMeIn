@@ -1,17 +1,12 @@
 package cn.fasserver.more_perm;
 
+import cn.fasserver.more_perm.joinServer.JoinServerListener;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
-import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
-import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
-import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import net.kyori.adventure.util.UTF8ResourceBundleControl;
@@ -22,7 +17,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
-import java.util.*;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.stream.Stream;
 
 @Plugin(
@@ -44,9 +41,18 @@ public class MorePerm {
         logger.info("More permission node enabled!");
     }
 
+    public Logger getLogger() {
+        return logger;
+    }
+
+    public ProxyServer getServer() {
+        return server;
+    }
+
     @Subscribe
     void onProxyInitializeEvent(ProxyInitializeEvent event) {
         registerTranslations();
+        JoinServerListener.init(this);
     }
 
     private void registerTranslations() {
@@ -99,7 +105,8 @@ public class MorePerm {
             String jarPathRaw = knownResource.toString().split("!")[0];
             URI path = URI.create(jarPathRaw + "!/");
 
-            try(FileSystem fileSystem = FileSystems.newFileSystem(path, Map.of("create", "true"))){
+            try{
+                FileSystem fileSystem = FileSystems.newFileSystem(path, Map.of("create", "true"));
                 l10nPath = fileSystem.getPath("l10n");
                 if (!Files.exists(l10nPath)) {
                     throw new IllegalStateException("l10n does not exist, don't know where we are");
@@ -124,44 +131,5 @@ public class MorePerm {
             l10nPath = Paths.get(uri);
         }
         return l10nPath;
-    }
-
-
-    @Subscribe
-    void onServerPreConnectEvent(ServerPreConnectEvent event) {
-        // If connection is not allowed, do nothing
-        if (!event.getResult().isAllowed()) return;
-        // else, check whether the player has permission to join server
-        if (event.getResult().getServer().isPresent() && canPlayerJoinServer(event.getPlayer(), event.getResult().getServer().get())) {
-            event.setResult(ServerPreConnectEvent.ServerResult.denied());
-            event.getPlayer().sendMessage(Component.translatable("more-perms.perm_deny.server_join", NamedTextColor.DARK_RED));
-        }
-    }
-
-    @Subscribe
-    void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
-        Optional<RegisteredServer> initialServer = event.getInitialServer();
-        if(initialServer.isPresent() && !canPlayerJoinServer(event.getPlayer(), initialServer.get())){
-            List<String> connOrder = server.getConfiguration().getAttemptConnectionOrder().stream().filter(
-                    s -> canPlayerJoinServer(event.getPlayer(), s)
-            ).toList();
-            event.setInitialServer(null);
-            for (String conn: connOrder){
-                Optional<RegisteredServer> serverOptional = server.getServer(conn);
-                if(serverOptional.isPresent()){
-                    event.setInitialServer(serverOptional.get());
-                    return;
-                }
-            }
-
-        }
-    }
-
-    private boolean canPlayerJoinServer(Player player, RegisteredServer server){
-        return canPlayerJoinServer(player, server.getServerInfo().getName());
-    }
-
-    private boolean canPlayerJoinServer(Player player, String server){
-        return player.hasPermission("server.join." + server);
     }
 }
