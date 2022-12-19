@@ -169,7 +169,8 @@ public class LetMeIn {
             String jarPathRaw = knownResource.toString().split("!")[0];
             URI path = URI.create(jarPathRaw + "!/");
 
-            try (FileSystem fileSystem = FileSystems.newFileSystem(path, Map.of("create", "true"))){
+            try {
+                FileSystem fileSystem = FileSystems.newFileSystem(path, Map.of("create", "true"));
                 l10nPath = fileSystem.getPath("l10n");
                 if (!Files.exists(l10nPath)) {
                     throw new IllegalStateException("l10n does not exist, don't know where we are");
