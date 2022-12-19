@@ -1,12 +1,20 @@
 package cn.fasserver.let_me_in;
 
-import cn.fasserver.let_me_in.joinServer.JoinServerPerm;
+import cn.fasserver.let_me_in.command.ServerCommand;
+import cn.fasserver.let_me_in.service.JoinServerPerm;
 import com.google.inject.Inject;
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import net.kyori.adventure.util.UTF8ResourceBundleControl;
@@ -17,9 +25,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Plugin(
@@ -28,7 +34,8 @@ import java.util.stream.Stream;
         version = "@version@",
         description = "Check permission from LuckPerm before join an server",
         url = "https://github.com/FAS-Server/LetMeIn",
-        authors = {"YehowahLiu"}
+        authors = {"YehowahLiu"},
+        dependencies = { @Dependency(id = "luckperms") }
 )
 public class LetMeIn {
     private final Logger logger;
@@ -49,12 +56,48 @@ public class LetMeIn {
         return server;
     }
 
+    // Listeners
     @Subscribe
     void onProxyInitializeEvent(ProxyInitializeEvent event) {
         registerTranslations();
-        JoinServerPerm.init(this);
+        server.getCommandManager().unregister("server");
+        server.getCommandManager().register("server", new ServerCommand(server));
     }
 
+    @Subscribe
+    void onServerPreConnectEvent(ServerPreConnectEvent event) {
+        // If connection is not allowed, do nothing
+        if (!event.getResult().isAllowed()) return;
+        // else, check whether the player has permission to join server
+        if (event.getResult().getServer().isPresent() && JoinServerPerm.check(event.getPlayer(), event.getResult().getServer().get())) {
+            event.setResult(ServerPreConnectEvent.ServerResult.denied());
+            event.getPlayer().sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
+        }
+    }
+
+    @Subscribe(order = PostOrder.LAST)
+    void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
+        Optional<RegisteredServer> initialServer = event.getInitialServer();
+        if(initialServer.isPresent() && !JoinServerPerm.check(event.getPlayer(), initialServer.get())){
+            getLogger().info("Initial server not permitted!");
+            List<String> connOrder = getServer().getConfiguration().getAttemptConnectionOrder().stream().filter(
+                    s -> JoinServerPerm.check(event.getPlayer(), s)
+            ).toList();
+            getLogger().info("Permitted servers are: " + Arrays.toString(connOrder.toArray()));
+            event.setInitialServer(null);
+            Optional<RegisteredServer> target = connOrder.stream().map(conn-> getServer().getServer(conn))
+                    .filter(Optional::isPresent).map(Optional::get)
+                    .findFirst();
+            if(target.isPresent()){
+                event.setInitialServer(target.get());
+                getLogger().info("Sending player to " + target.get());
+            }else {
+                event.setInitialServer(null);
+            }
+        }
+    }
+
+    // Translations
     private void registerTranslations() {
         logger.info("Loading localizations...");
         final TranslationRegistry translationRegistry = TranslationRegistry
