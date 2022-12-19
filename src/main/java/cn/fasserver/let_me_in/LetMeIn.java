@@ -37,7 +37,7 @@ import java.util.stream.Stream;
         description = "Check permission before join an server",
         url = "https://github.com/FAS-Server/LetMeIn",
         authors = {"YehowahLiu"},
-        dependencies = { @Dependency(id = "luckperms") }
+        dependencies = { @Dependency(id = "luckperms", optional = true) }
 )
 public class LetMeIn {
     private final Logger logger;
