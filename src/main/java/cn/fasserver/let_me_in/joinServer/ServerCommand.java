@@ -1,4 +1,4 @@
-package cn.fasserver.more_perm.joinServer;
+package cn.fasserver.let_me_in.joinServer;
 
 import com.google.common.collect.ImmutableList;
 import com.velocitypowered.api.command.CommandSource;

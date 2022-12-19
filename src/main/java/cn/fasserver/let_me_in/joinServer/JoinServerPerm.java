@@ -1,11 +1,11 @@
-package cn.fasserver.more_perm.joinServer;
+package cn.fasserver.let_me_in.joinServer;
 
-import cn.fasserver.more_perm.MorePerm;
+import cn.fasserver.let_me_in.LetMeIn;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 
 public class JoinServerPerm {
-    public static void init(MorePerm plugin){
+    public static void init(LetMeIn plugin){
         plugin.getServer().getEventManager().register(plugin, new JoinServerListener(plugin));
         plugin.getServer().getCommandManager().unregister("server");
         plugin.getServer().getCommandManager().register("server", new ServerCommand(plugin.getServer()));

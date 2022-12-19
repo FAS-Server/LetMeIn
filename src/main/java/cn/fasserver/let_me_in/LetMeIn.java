@@ -1,6 +1,6 @@
-package cn.fasserver.more_perm;
+package cn.fasserver.let_me_in;
 
-import cn.fasserver.more_perm.joinServer.JoinServerPerm;
+import cn.fasserver.let_me_in.joinServer.JoinServerPerm;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
@@ -26,16 +26,16 @@ import java.util.stream.Stream;
         id = "@id@",
         name = "@name@",
         version = "@version@",
-        description = "Manage your server with more permission node",
-        url = "https://github.com/FAS-Server/MorePerm",
+        description = "Check permission from LuckPerm before join an server",
+        url = "https://github.com/FAS-Server/LetMeIn",
         authors = {"YehowahLiu"}
 )
-public class MorePerm {
+public class LetMeIn {
     private final Logger logger;
     private final ProxyServer server;
 
     @Inject
-    public MorePerm(ProxyServer server, Logger logger) {
+    public LetMeIn(ProxyServer server, Logger logger) {
         this.server = server;
         this.logger = logger;
         logger.info("More permission node enabled!");
@@ -94,7 +94,7 @@ public class MorePerm {
 
     private static Path getL10nPath() {
         Path l10nPath;
-        URL knownResource = MorePerm.class.getClassLoader().getResource("l10n/lang.properties");
+        URL knownResource = LetMeIn.class.getClassLoader().getResource("l10n/lang.properties");
 
         if (knownResource == null) {
             throw new IllegalStateException("lang.properties does not exist, don't know where we are");
@@ -118,7 +118,7 @@ public class MorePerm {
             // Running from the file system
             URI uri;
             try {
-                URL url = MorePerm.class.getClassLoader().getResource("l10n");
+                URL url = LetMeIn.class.getClassLoader().getResource("l10n");
                 if (url == null) {
                     throw new IllegalStateException("l10n does not exist, don't know where we are");
                 }

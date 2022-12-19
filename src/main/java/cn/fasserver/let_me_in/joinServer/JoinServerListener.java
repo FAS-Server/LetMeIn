@@ -1,6 +1,6 @@
-package cn.fasserver.more_perm.joinServer;
+package cn.fasserver.let_me_in.joinServer;
 
-import cn.fasserver.more_perm.MorePerm;
+import cn.fasserver.let_me_in.LetMeIn;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.Optional;
 
 public class JoinServerListener {
-    private final MorePerm plugin;
+    private final LetMeIn plugin;
 
-    JoinServerListener(MorePerm morePerm){
+    JoinServerListener(LetMeIn morePerm){
         plugin = morePerm;
     }
 
