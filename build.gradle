@@ -1,11 +1,10 @@
 plugins {
     id 'java'
-    id 'eclipse'
-    id "org.jetbrains.gradle.plugin.idea-ext" version "1.0.1"
+    id 'net.kyori.blossom' version '1.3.1'
 }
 
 group = 'cn.fas-server'
-version = '0.0.1'
+version = '0.0.1-beta1'
 
 repositories {
     mavenCentral()
@@ -24,15 +23,10 @@ tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
 }
 
-import org.apache.tools.ant.filters.ReplaceTokens
-task processSource(type: Sync){
-    from sourceSets.main.java.srcDirs
-    inputs.property 'version', version
-    filter ReplaceTokens, tokens: [version: version]
-    into "$buildDir/processSource"
+blossom {
+    replaceToken '@id@', name.replace(" ", "-").toLowerCase()
+    replaceToken '@name@', name
+    replaceToken '@version@', version
 }
-
-compileJava.source = processSource.outputs
-compileJava.dependsOn processSource
 
 

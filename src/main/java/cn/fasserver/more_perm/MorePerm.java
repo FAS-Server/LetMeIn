@@ -23,8 +23,8 @@ import java.util.ResourceBundle;
 import java.util.stream.Stream;
 
 @Plugin(
-        id = "more-perm",
-        name = "More Permission",
+        id = "@id@",
+        name = "@name@",
         version = "@version@",
         description = "Manage your server with more permission node",
         url = "https://github.com/FAS-Server/MorePerm",
