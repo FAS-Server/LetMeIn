@@ -4,7 +4,6 @@ import cn.fasserver.let_me_in.command.ServerCommand;
 import cn.fasserver.let_me_in.service.JoinServerPerm;
 import cn.fasserver.let_me_in.service.ServerRememberService;
 import com.google.inject.Inject;
-import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
@@ -76,13 +75,15 @@ public class LetMeIn {
         // If connection is not allowed, do nothing
         if (!event.getResult().isAllowed()) return;
         // else, check whether the player has permission to join server
-        if (event.getResult().getServer().isPresent() && JoinServerPerm.check(event.getPlayer(), event.getResult().getServer().get())) {
-            event.setResult(ServerPreConnectEvent.ServerResult.denied());
-            event.getPlayer().sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
-        }
+        event.getResult().getServer().ifPresent(server1 -> {
+            if(!JoinServerPerm.check(event.getPlayer(), server1)){
+                event.setResult(ServerPreConnectEvent.ServerResult.denied());
+                event.getPlayer().sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
+            }
+        });
     }
 
-    @Subscribe(order = PostOrder.LAST)
+    @Subscribe
     void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
         Optional<RegisteredServer> initialServer = event.getInitialServer();
         serverRememberService.getLastServerName(event.getPlayer().getUniqueId()).thenAcceptAsync(lastServerName ->{
@@ -99,12 +100,15 @@ public class LetMeIn {
                     continue;
                 }
                 target = s;
+                break;
             }
 
             if(target != null){
+                logger.info("Sending player to " + target.getServerInfo().getName());
                 event.setInitialServer(target);
             } else {
                 event.setInitialServer(null);
+                logger.info("No server for player to join!");
                 event.getPlayer().disconnect(Component.translatable("let-me-in.no_available_server"));
             }
         }).join();
