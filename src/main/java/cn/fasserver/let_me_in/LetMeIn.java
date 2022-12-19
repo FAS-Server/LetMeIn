@@ -58,7 +58,7 @@ public class LetMeIn {
     private void registerTranslations() {
         logger.info("Loading localizations...");
         final TranslationRegistry translationRegistry = TranslationRegistry
-                .create(Key.key("more-perms", "translations"));
+                .create(Key.key("let-me-in", "translations"));
         translationRegistry.defaultLocale(Locale.US);
 
         Path i18nPath = getL10nPath();

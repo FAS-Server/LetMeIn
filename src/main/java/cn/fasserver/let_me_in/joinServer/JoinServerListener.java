@@ -27,7 +27,7 @@ public class JoinServerListener {
         // else, check whether the player has permission to join server
         if (event.getResult().getServer().isPresent() && JoinServerPerm.check(event.getPlayer(), event.getResult().getServer().get())) {
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
-            event.getPlayer().sendMessage(Component.translatable("more-perms.perm_deny.server_join", NamedTextColor.DARK_RED));
+            event.getPlayer().sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
         }
     }
 

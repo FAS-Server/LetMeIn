@@ -54,7 +54,7 @@ public class ServerCommand implements SimpleCommand {
             }
 
             if(!JoinServerPerm.check(source, serverName)){
-                player.sendMessage(Component.translatable("more-perms.perm_deny.server_join", NamedTextColor.DARK_RED));
+                player.sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
                 return;
             }
 
