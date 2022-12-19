@@ -1,6 +1,6 @@
 package cn.fasserver.more_perm;
 
-import cn.fasserver.more_perm.joinServer.JoinServerListener;
+import cn.fasserver.more_perm.joinServer.JoinServerPerm;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
@@ -52,7 +52,7 @@ public class MorePerm {
     @Subscribe
     void onProxyInitializeEvent(ProxyInitializeEvent event) {
         registerTranslations();
-        JoinServerListener.init(this);
+        JoinServerPerm.init(this);
     }
 
     private void registerTranslations() {
@@ -105,8 +105,7 @@ public class MorePerm {
             String jarPathRaw = knownResource.toString().split("!")[0];
             URI path = URI.create(jarPathRaw + "!/");
 
-            try{
-                FileSystem fileSystem = FileSystems.newFileSystem(path, Map.of("create", "true"));
+            try (FileSystem fileSystem = FileSystems.newFileSystem(path, Map.of("create", "true"))){
                 l10nPath = fileSystem.getPath("l10n");
                 if (!Files.exists(l10nPath)) {
                     throw new IllegalStateException("l10n does not exist, don't know where we are");
