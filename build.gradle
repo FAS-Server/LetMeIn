@@ -15,6 +15,8 @@ repositories {
 }
 
 dependencies {
+    implementation group: 'net.luckperms', name: 'api', version: '5.4'
+
     compileOnly 'com.velocitypowered:velocity-api:3.1.1'
     annotationProcessor 'com.velocitypowered:velocity-api:3.1.1'
 }

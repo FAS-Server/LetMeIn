@@ -2,10 +2,12 @@ package cn.fasserver.let_me_in;
 
 import cn.fasserver.let_me_in.command.ServerCommand;
 import cn.fasserver.let_me_in.service.JoinServerPerm;
+import cn.fasserver.let_me_in.service.ServerRememberService;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Dependency;
@@ -18,6 +20,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import net.kyori.adventure.util.UTF8ResourceBundleControl;
+import net.luckperms.api.LuckPermsProvider;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -26,6 +29,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Stream;
 
 @Plugin(
@@ -40,6 +45,7 @@ import java.util.stream.Stream;
 public class LetMeIn {
     private final Logger logger;
     private final ProxyServer server;
+    private ServerRememberService serverRememberService;
 
     @Inject
     public LetMeIn(ProxyServer server, Logger logger) {
@@ -62,6 +68,7 @@ public class LetMeIn {
         registerTranslations();
         server.getCommandManager().unregister("server");
         server.getCommandManager().register("server", new ServerCommand(server));
+        this.serverRememberService = new ServerRememberService(LuckPermsProvider.get());
     }
 
     @Subscribe
@@ -78,23 +85,37 @@ public class LetMeIn {
     @Subscribe(order = PostOrder.LAST)
     void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
         Optional<RegisteredServer> initialServer = event.getInitialServer();
-        if(initialServer.isPresent() && !JoinServerPerm.check(event.getPlayer(), initialServer.get())){
-            getLogger().info("Initial server not permitted!");
-            List<String> connOrder = getServer().getConfiguration().getAttemptConnectionOrder().stream().filter(
-                    s -> JoinServerPerm.check(event.getPlayer(), s)
-            ).toList();
-            getLogger().info("Permitted servers are: " + Arrays.toString(connOrder.toArray()));
-            event.setInitialServer(null);
-            Optional<RegisteredServer> target = connOrder.stream().map(conn-> getServer().getServer(conn))
+        serverRememberService.getLastServerName(event.getPlayer().getUniqueId()).thenAcceptAsync(lastServerName ->{
+            List<String> connOrderString = new ArrayList<>(List.of(lastServerName));
+            connOrderString.addAll(getServer().getConfiguration().getAttemptConnectionOrder());
+            List<RegisteredServer> targets = connOrderString.stream().distinct().map(s -> getServer().getServer(s))
                     .filter(Optional::isPresent).map(Optional::get)
-                    .findFirst();
-            if(target.isPresent()){
-                event.setInitialServer(target.get());
-                getLogger().info("Sending player to " + target.get());
-            }else {
-                event.setInitialServer(null);
+                    .filter(s -> JoinServerPerm.check(event.getPlayer(), s)).toList();
+            RegisteredServer target = null;
+            for (RegisteredServer s : targets) {
+                try {
+                    s.ping().join();
+                } catch (CancellationException | CompletionException exception){
+                    continue;
+                }
+                target = s;
             }
-        }
+
+            if(target != null){
+                event.setInitialServer(target);
+            } else {
+                event.setInitialServer(null);
+                event.getPlayer().disconnect(Component.translatable("let-me-in.no_available_server"));
+            }
+        }).join();
+    }
+
+    @Subscribe
+    void onServerConnectedEvent(ServerConnectedEvent event){
+        serverRememberService.setLastServerName(
+                event.getPlayer().getUniqueId(),
+                event.getServer().getServerInfo().getName()
+        );
     }
 
     // Translations
