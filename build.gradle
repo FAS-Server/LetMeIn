@@ -27,8 +27,8 @@ tasks.withType(JavaCompile) {
 
 blossom {
     replaceToken '@id@', name.replace(" ", "-").toLowerCase()
-    replaceToken '@name@', name
+    replaceToken '@name@', name.replace(" ", "")
     replaceToken '@version@', version
 }
 
-
+archivesBaseName = name.replace(" ", "")
