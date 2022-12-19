@@ -2,7 +2,9 @@ package cn.fasserver.let_me_in;
 
 import cn.fasserver.let_me_in.command.ServerCommand;
 import cn.fasserver.let_me_in.service.JoinServerPerm;
+import cn.fasserver.let_me_in.service.LuckpermsListener;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
@@ -10,6 +12,7 @@ import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.key.Key;
@@ -18,6 +21,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import net.kyori.adventure.util.UTF8ResourceBundleControl;
+import net.luckperms.api.LuckPermsProvider;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -37,11 +41,12 @@ import java.util.stream.Stream;
         description = "Check permission before join an server",
         url = "https://github.com/FAS-Server/LetMeIn",
         authors = {"YehowahLiu"},
-        dependencies = { @Dependency(id = "luckperms", optional = true) }
+        dependencies = {@Dependency(id = "luckperms", optional = true)}
 )
 public class LetMeIn {
     private final Logger logger;
     private final ProxyServer server;
+    private boolean hasLuckperms = false;
 
     @Inject
     public LetMeIn(ProxyServer server, Logger logger) {
@@ -50,8 +55,17 @@ public class LetMeIn {
         logger.info("Plugin LetMeIn is enabled!");
     }
 
+    @Inject(optional = true)
+    public void initialLuckperms(@Named("luckperms") PluginContainer luckPermsContainer) {
+        hasLuckperms = luckPermsContainer != null;
+    }
+
     public ProxyServer getServer() {
         return server;
+    }
+
+    public Logger getLogger() {
+        return logger;
     }
 
     // Listeners
@@ -60,6 +74,9 @@ public class LetMeIn {
         registerTranslations();
         server.getCommandManager().unregister("server");
         server.getCommandManager().register("server", new ServerCommand(server));
+        if (hasLuckperms) {
+            new LuckpermsListener(this, LuckPermsProvider.get());
+        }
     }
 
     @Subscribe
@@ -68,7 +85,7 @@ public class LetMeIn {
         if (!event.getResult().isAllowed()) return;
         // else, check whether the player has permission to join server
         event.getResult().getServer().ifPresent(server1 -> {
-            if(!JoinServerPerm.check(event.getPlayer(), server1)){
+            if (!JoinServerPerm.check(event.getPlayer(), server1)) {
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
                 event.getPlayer().sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
             }
@@ -76,7 +93,7 @@ public class LetMeIn {
     }
 
     @Subscribe(order = PostOrder.LAST)
-    void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
+    void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event) {
         Optional<RegisteredServer> initialServer = event.getInitialServer();
         initialServer.ifPresent(server1 -> {
             List<String> connOrderString = new ArrayList<>(List.of(server1.getServerInfo().getName()));
@@ -84,18 +101,9 @@ public class LetMeIn {
             List<RegisteredServer> targets = connOrderString.stream().distinct().map(s -> getServer().getServer(s))
                     .filter(Optional::isPresent).map(Optional::get)
                     .filter(s -> JoinServerPerm.check(event.getPlayer(), s)).toList();
-            RegisteredServer target = null;
-            for (RegisteredServer s : targets) {
-                try {
-                    s.ping().join();
-                } catch (CancellationException | CompletionException exception){
-                    continue;
-                }
-                target = s;
-                break;
-            }
+            RegisteredServer target = checkFirstAvailableServer(targets);
 
-            if(target != null){
+            if (target != null) {
                 logger.info("Sending player to " + target.getServerInfo().getName());
                 event.setInitialServer(target);
             } else {
@@ -104,6 +112,20 @@ public class LetMeIn {
                 event.getPlayer().disconnect(Component.translatable("let-me-in.no_available_server"));
             }
         });
+    }
+
+    public RegisteredServer checkFirstAvailableServer(List<RegisteredServer> servers) {
+        RegisteredServer target = null;
+        for (RegisteredServer s : servers) {
+            try {
+                s.ping().join();
+            } catch (CancellationException | CompletionException exception) {
+                continue;
+            }
+            target = s;
+            break;
+        }
+        return target;
     }
 
     // Translations

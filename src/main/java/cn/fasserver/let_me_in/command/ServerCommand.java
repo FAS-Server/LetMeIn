@@ -54,7 +54,7 @@ public class ServerCommand implements SimpleCommand {
                 return;
             }
 
-            if(!JoinServerPerm.check(source, serverName)){
+            if (!JoinServerPerm.check(source, serverName)) {
                 player.sendMessage(Component.translatable("let-me-in.perm_deny.server_join", NamedTextColor.DARK_RED));
                 return;
             }
@@ -102,9 +102,9 @@ public class ServerCommand implements SimpleCommand {
         playersTextComponent = playersTextComponent.args(Component.text(connectedPlayers));
         if (serverInfo.getName().equals(currentPlayerServer)) {
             serverTextComponent = serverTextComponent.color(NamedTextColor.GREEN).hoverEvent(showText(Component.translatable("velocity.command.server-tooltip-current-server").append(Component.newline()).append(playersTextComponent)));
-        } else if(JoinServerPerm.check(player, server)) {
+        } else if (JoinServerPerm.check(player, server)) {
             serverTextComponent = serverTextComponent.color(NamedTextColor.GRAY).clickEvent(ClickEvent.runCommand("/server " + serverInfo.getName())).hoverEvent(showText(Component.translatable("velocity.command.server-tooltip-offer-connect-server").append(Component.newline()).append(playersTextComponent)));
-        }else {
+        } else {
             serverTextComponent = serverTextComponent.color(NamedTextColor.DARK_RED).hoverEvent(showText(Component.translatable("more-perms.perm_deny.server_join").append(Component.newline()).append(playersTextComponent)));
         }
         return serverTextComponent;
@@ -114,7 +114,7 @@ public class ServerCommand implements SimpleCommand {
     public List<String> suggest(final SimpleCommand.Invocation invocation) {
         final String[] currentArgs = invocation.arguments();
         Stream<String> possibilities = server.getAllServers().stream().filter(
-                rs-> JoinServerPerm.check(invocation.source(), rs)
+                rs -> JoinServerPerm.check(invocation.source(), rs)
         ).map(rs -> rs.getServerInfo().getName());
 
         if (currentArgs.length == 0) {
