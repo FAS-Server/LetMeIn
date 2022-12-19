@@ -2,11 +2,10 @@ package cn.fasserver.let_me_in;
 
 import cn.fasserver.let_me_in.command.ServerCommand;
 import cn.fasserver.let_me_in.service.JoinServerPerm;
-import cn.fasserver.let_me_in.service.ServerRememberService;
 import com.google.inject.Inject;
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Dependency;
@@ -19,7 +18,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import net.kyori.adventure.util.UTF8ResourceBundleControl;
-import net.luckperms.api.LuckPermsProvider;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -36,7 +34,7 @@ import java.util.stream.Stream;
         id = "@id@",
         name = "@name@",
         version = "@version@",
-        description = "Check permission from LuckPerm before join an server",
+        description = "Check permission before join an server",
         url = "https://github.com/FAS-Server/LetMeIn",
         authors = {"YehowahLiu"},
         dependencies = { @Dependency(id = "luckperms") }
@@ -44,17 +42,12 @@ import java.util.stream.Stream;
 public class LetMeIn {
     private final Logger logger;
     private final ProxyServer server;
-    private ServerRememberService serverRememberService;
 
     @Inject
     public LetMeIn(ProxyServer server, Logger logger) {
         this.server = server;
         this.logger = logger;
-        logger.info("More permission node enabled!");
-    }
-
-    public Logger getLogger() {
-        return logger;
+        logger.info("Plugin LetMeIn is enabled!");
     }
 
     public ProxyServer getServer() {
@@ -67,7 +60,6 @@ public class LetMeIn {
         registerTranslations();
         server.getCommandManager().unregister("server");
         server.getCommandManager().register("server", new ServerCommand(server));
-        this.serverRememberService = new ServerRememberService(LuckPermsProvider.get());
     }
 
     @Subscribe
@@ -83,11 +75,11 @@ public class LetMeIn {
         });
     }
 
-    @Subscribe
+    @Subscribe(order = PostOrder.LAST)
     void onPlayerChooseInitialServerEvent(PlayerChooseInitialServerEvent event){
         Optional<RegisteredServer> initialServer = event.getInitialServer();
-        serverRememberService.getLastServerName(event.getPlayer().getUniqueId()).thenAcceptAsync(lastServerName ->{
-            List<String> connOrderString = new ArrayList<>(List.of(lastServerName));
+        initialServer.ifPresent(server1 -> {
+            List<String> connOrderString = new ArrayList<>(List.of(server1.getServerInfo().getName()));
             connOrderString.addAll(getServer().getConfiguration().getAttemptConnectionOrder());
             List<RegisteredServer> targets = connOrderString.stream().distinct().map(s -> getServer().getServer(s))
                     .filter(Optional::isPresent).map(Optional::get)
@@ -111,15 +103,7 @@ public class LetMeIn {
                 logger.info("No server for player to join!");
                 event.getPlayer().disconnect(Component.translatable("let-me-in.no_available_server"));
             }
-        }).join();
-    }
-
-    @Subscribe
-    void onServerConnectedEvent(ServerConnectedEvent event){
-        serverRememberService.setLastServerName(
-                event.getPlayer().getUniqueId(),
-                event.getServer().getServerInfo().getName()
-        );
+        });
     }
 
     // Translations
